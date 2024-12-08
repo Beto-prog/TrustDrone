@@ -5,7 +5,7 @@ Team members:
 - Alberto Roversti
 - Mattia Ferretti
 - Lorenzo Cortese
-- Robert Blaga
+- Dumitru-Robert Blaga
 
 # User guide
 In order to use our implementation of the drone you need to follow these steps:
