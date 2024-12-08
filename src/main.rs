@@ -57,7 +57,7 @@ TrustNode is the implementation of the drone controller used in the simulation.
 */
 
 
-struct TrustDrone {
+pub struct TrustDrone {
     id: NodeId,
     controller_send: Sender<DroneEvent>,
     controller_recv: Receiver<DroneCommand>,
