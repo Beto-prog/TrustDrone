@@ -73,7 +73,7 @@ pub struct TrustDrone {
 
 //just the initialization of the drone
 impl Drone for TrustDrone {
-    pub fn new(
+     fn new(
         id: NodeId,
         controller_send: Sender<DroneEvent>,
         controller_recv: Receiver<DroneCommand>,
