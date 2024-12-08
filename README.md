@@ -2,7 +2,7 @@
 Welcome to the repository of the drone "In God (and Rust) We Trust".
 
 Team members:
-- Alberto Roversti
+- Alberto Rovesti
 - Mattia Ferretti
 - Lorenzo Cortese
 - Dumitru-Robert Blaga
