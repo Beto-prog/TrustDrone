@@ -1,10 +1,7 @@
+// IMPORTANT: for a better understanding of the code please read the protocol specification at : https://github.com/WGL-2024/WGL_repo_2024/blob/main/AP-protocol.md
 use crossbeam_channel::{select_biased, unbounded, Receiver, Sender};
 use rand::rngs::StdRng;
 use rand::{random, Rng, SeedableRng};
-
-// For a better understanding of the code please read the protocol specification at : https://github.com/WGL-2024/WGL_repo_2024/blob/main/AP-protocol.md
-
-
 use std::collections::HashMap;
 use std::process::exit;
 use wg_2024::controller::DroneEvent::{ControllerShortcut, PacketDropped, PacketSent};
@@ -424,12 +421,6 @@ Packets are routed through the network using the information in the routing_head
 
         println!("Drone {} has successfully crashed.", self.id);
     }
-
-    /*
-    implemented elsewhere
-       fn send_flood_request()
-       {todo!()}
-       fn send_flood_response(){todo!()}*/
 }
 
 #[cfg(test)]
@@ -554,19 +545,14 @@ mod tests {
         //test SetPacketDropRate
         drone.handle_command(dc2);
         assert_eq!(drone.pdr, 0.7);
-
-        //test RemoveSender
-        // TODO test Crash drone.handle_command(dc4);
-
     }
 }
 
 use std::thread;
 use wg_2024::packet::Fragment;
-/* THE FOLLOWING TESTS CHECKS IF YOUR DRONE IS HANDLING CORRECTLY PACKETS (FRAGMENT) */
+/* THE FOLLOWING TESTS CHECKS IF THE DRONE IS HANDLING HANDLING PACKETS (FRAGMENT) */
 
 /// Creates a sample packet for testing purposes. For convenience, using 1-10 for clients, 11-20 for drones and 21-30 for servers
-///
 fn create_sample_packet() -> Packet {
     Packet {
         pack_type: PacketType::MsgFragment(Fragment {
@@ -582,8 +568,8 @@ fn create_sample_packet() -> Packet {
         session_id: 1,
     }
 }
-#[test]
 /// This function is used to test the packet forward functionality of a drone.
+#[test]
 pub fn generic_fragment_forward() {
     // drone 2 <Packet>
     let (d_send, d_recv) = unbounded();
@@ -615,9 +601,8 @@ pub fn generic_fragment_forward() {
     // d2 receives packet from d
     assert_eq!(t, msg);
 }
-
-#[test]
 /// Checks if the packet is dropped by one drone. The drone MUST have 100% packet drop rate, otherwise the test will fail sometimes.
+#[test]
 pub fn generic_fragment_drop() {
     // Client 1
     let (c_send, c_recv) = unbounded();
@@ -665,11 +650,9 @@ pub fn generic_fragment_drop() {
     assert_eq!(t, nack_packet);
 }
 
-#[test]
 /// Checks if the packet is dropped by the second drone. The first drone must have 0% PDR and the second one 100% PDR, otherwise the test will fail sometimes.
+#[test]
 pub fn generic_chain_fragment_drop() {
-
-
     // Client 1 channels
     let (c_send, c_recv) = unbounded();
     // Server 21 channels
@@ -732,12 +715,10 @@ pub fn generic_chain_fragment_drop() {
         },
         session_id: 1,
     };
-
-
     assert_eq!(t3, t4);
 }
-/// Checks if the packet can reach its destination. Both drones must have 0% PDR, otherwise the test will fail sometimes.
 
+/// Checks if the packet can reach its destination. Both drones must have 0% PDR, otherwise the test will fail sometimes.
 #[test]
 pub fn generic_chain_fragment_ack() {
     // Client<1> channels
@@ -828,11 +809,4 @@ pub fn generic_chain_fragment_ack() {
     assert_eq!(t6, ack2);
 }
 
-
-fn main() {
-
-    //generic_chain_fragment_drop();
-    //generic_chain_fragment_ack();
-
-
-}
+fn main() {}
