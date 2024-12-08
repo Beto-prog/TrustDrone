@@ -243,7 +243,7 @@ Packets are routed through the network using the information in the routing_head
                     panic!("Can not find neighbour who send this packet {} ", flood_packet);
                 }
 
-                if self.flood_ids.contains(&flood_packet.flood_id)      // if the drone had already seen this FloodRequest  it sends a FloodResponse back
+                if self.flood_ids.contains(&flood_packet.flood_id)      // if the drone had already seen this FloodRequest it sends a FloodResponse back
                 {
                     self.send_packet(previous_neighbour, flood_packet.generate_response(7));  //send back   !!!!!!!!!!Session id unknown
 
@@ -251,11 +251,11 @@ Packets are routed through the network using the information in the routing_head
                     self.flood_ids.push(flood_packet.flood_id); //save the flood id for next use
 
                     if self.packet_send.len() - 1 == 0 {
-                        //if there are no neighbour send back flooding response 
+                        //if there are no neighbours send back flooding response 
 
                         self.send_packet(previous_neighbour, flood_packet.generate_response(7));  //send back   !!!!!!!!!!Session id unknown
 
-                    } else {    //send packet to all the neibourgh except the sender
+                    } else {    //send packet to all the neighbours except the sender
                         for (key, _) in self.packet_send.clone() {
                             if key != previous_neighbour {
                                 let mut cloned_packett = packett.clone();
