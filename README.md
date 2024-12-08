@@ -14,7 +14,7 @@ In order to use our implementation of the drone you need to follow these steps:
 [dependencies]
 TrustDrone = { git = "https://github.com/Beto-prog/TrustDone", package = "drone" }
 ```
-2. Pray God (and Rust, or both) it works
+2. Pray God (or Rust, or both) it works
 3. If the previous step didn't work, feel free to write us on this Telegram group
 ```
 https://t.me/+HDoQkiV2qK0zZjc0
