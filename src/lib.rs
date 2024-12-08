@@ -68,7 +68,7 @@ pub struct TrustDrone {
 }
 
 
-//just the initialization of the drone
+//Initialization of the drone
  impl Drone for TrustDrone {
       fn new(
         id: NodeId,
@@ -123,7 +123,7 @@ pub struct TrustDrone {
 }
 
 impl TrustDrone {
-    // This is the part that handle command received from the simulation controller (it has nothing to do with the packet exchange)
+    // This is the part that handles commands received from the simulation controller (it has nothing to do with the packet exchange)
     fn handle_command(&mut self, command: DroneCommand) {
         match command {
             DroneCommand::AddSender(id, sender) => {
@@ -140,9 +140,7 @@ impl TrustDrone {
             DroneCommand::RemoveSender(neighbor_id) => self.remove_sender(neighbor_id),
         }
     }
-
-
-    /*
+/*
 Structure of a Packet (Packet)
 
 A Packet is the fundamental unit of communication in the network.
@@ -172,7 +170,7 @@ Packets are routed through the network using the information in the routing_head
 */
 
 
-    // This is the part that handle packet received from the other drones.
+    // This is the part that handles packets received from other drones.
     fn handle_packet(&mut self, mut packett: Packet) {
         let mut packet = packett.clone();   //used because flooding needs the original packet
 
@@ -218,16 +216,13 @@ Packets are routed through the network using the information in the routing_head
             PacketType::Ack(_) => {
                 self.send_valid_packet(next_hop, packet);
             }
-
-
-
             /*
              pub struct FloodRequest {
                  flood_id: u64,               Unique identifier for the flooding operation
                  initiator_id: NodeId,        ID of the node that started the flooding
                  path_trace: Vec<(NodeId, NodeType)>, // Trace of nodes traversed during the flooding
              }
-         */
+             */
 
             PacketType::FloodRequest(mut flood_packet) => {
                 flood_packet.increment(self.id, DroneType);
