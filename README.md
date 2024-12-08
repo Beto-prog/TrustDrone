@@ -12,7 +12,7 @@ In order to use our implementation of the drone you need to follow these steps:
 1. Add our repo link in your `Cargo.toml` file under the `[dependencies]` section. It should look something like this:
 ```rust
 [dependencies]
-TrustDrone = {git = "https://github.com/Beto-prog/TrustDrone.git", features = ["serialize","debug"]}
+TrustDrone = { git = "https://github.com/Beto-prog/TrustDone", package = "drone" }
 ```
 2. Pray God (**and Rust**) it works
 
