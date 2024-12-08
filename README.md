@@ -13,6 +13,6 @@ In order to use our implementation of the drone you need to follow these steps:
 ```rust
 [dependencies]
 ```
-2. Pray God (**and Rust**) is works
+2. Pray God (**and Rust**) it works
 
  
