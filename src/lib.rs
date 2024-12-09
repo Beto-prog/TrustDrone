@@ -1,4 +1,7 @@
+#![allow(warnings)]
+
 // IMPORTANT: for a better understanding of the code please read the protocol specification at : https://github.com/WGL-2024/WGL_repo_2024/blob/main/AP-protocol.md
+
 use crossbeam_channel::{select_biased, unbounded, Receiver, Sender};
 use rand::rngs::StdRng;
 use rand::{random, Rng, SeedableRng};
@@ -168,6 +171,54 @@ impl TrustDrone {
     fn handle_packet(&mut self, mut packett: Packet) {
         let mut packet = packett.clone(); //used because flooding needs the original packet
         let old_routing_headers = packet.routing_header.clone();
+        if let PacketType::FloodRequest ( mut flood_packet ) = packet.pack_type //check if it is a floodRequst (to skip )
+        {
+
+                flood_packet.increment(self.id, DroneType);
+
+                let mut previous_neighbour = 0;
+
+                if let Some(last) = flood_packet.path_trace.last() {
+                    previous_neighbour = last.0;
+                } else {
+                    panic!(
+                        "Can not find neighbour who send this packet {} ",
+                        flood_packet
+                    );
+                }
+
+                if self.flood_ids.contains(&flood_packet.flood_id)
+                // if the drone had already seen this FloodRequest it sends a FloodResponse back
+                {
+                    self.send_packet(previous_neighbour, flood_packet.generate_response(42));
+                //send back   !!!!!!!!!!Session id unknown
+                } else {
+                    self.flood_ids.push(flood_packet.flood_id); //save the flood id for next use
+                    if self.packet_send.len() - 1 == 0 {
+                        //if there are no neighbours send back flooding response
+                        self.send_packet(previous_neighbour, flood_packet.generate_response(42));
+                    //send back   !!!!!!!!!!Session id unknown
+                    } else {
+                        //send packet to all the neighbours except the sender
+                        for (key, _) in self.packet_send.clone() {
+                            if key != previous_neighbour {
+                                let mut cloned_packett = packett.clone();
+                                cloned_packett.pack_type =
+                                    PacketType::FloodResponse(FloodResponse {
+                                        flood_id: flood_packet.flood_id,
+                                        path_trace: flood_packet.path_trace.clone(),
+                                    });
+                                self.send_packet(key, cloned_packett);
+                            }
+                        }
+                    }
+                }
+            }
+        
+        else 
+        {
+
+
 
         //Step 1 of the protocol , if the packet was not meant for him
         if packet.routing_header.hops[packet.routing_header.hop_index] != self.id {
@@ -207,6 +258,7 @@ impl TrustDrone {
             return;
         }
 
+        
         //step 5
         match packet.pack_type {
             PacketType::MsgFragment(_) => {
@@ -236,7 +288,7 @@ impl TrustDrone {
                 path_trace: Vec<(NodeId, NodeType)>, // Trace of nodes traversed during the flooding
             }
             */
-            PacketType::FloodRequest(mut flood_packet) => {
+            /*PacketType::FloodRequest(mut flood_packet) => {
                 flood_packet.increment(self.id, DroneType);
 
                 let mut previous_neighbour = 0;
@@ -276,13 +328,15 @@ impl TrustDrone {
                         }
                     }
                 }
-            }
+            }*/
             PacketType::FloodResponse(_) => {
                 self.send_valid_packet(next_hop, packet);
             }
+
+            _ => {panic!("Impossible")} // I have to put this because i moved the FloodRequest at the beginning
         }
     }
-
+}
     fn add_sender(&mut self, id: NodeId, sender: Sender<Packet>) {
         self.packet_send.insert(id, sender);
     }
