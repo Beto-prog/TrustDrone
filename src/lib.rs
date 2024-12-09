@@ -3,7 +3,7 @@ use crossbeam_channel::{select_biased, unbounded, Receiver, Sender};
 use rand::rngs::StdRng;
 use rand::{random, Rng, SeedableRng};
 use std::collections::HashMap;
-use std::process::exit;
+
 use wg_2024::controller::DroneEvent::{ControllerShortcut, PacketDropped, PacketSent};
 use wg_2024::controller::{DroneCommand, DroneEvent};
 use wg_2024::drone::Drone;
@@ -53,7 +53,6 @@ TrustNode is the implementation of the drone controller used in the simulation.
 ================================================================================================
 */
 
-
 pub struct TrustDrone {
     id: NodeId,
     controller_send: Sender<DroneEvent>,
@@ -67,10 +66,9 @@ pub struct TrustDrone {
     flood_ids: Vec<u64>,
 }
 
-
 //Initialization of the drone
- impl Drone for TrustDrone {
-      fn new(
+impl Drone for TrustDrone {
+    fn new(
         id: NodeId,
         controller_send: Sender<DroneEvent>,
         controller_recv: Receiver<DroneCommand>,
@@ -100,6 +98,11 @@ pub struct TrustDrone {
                  recv(self.controller_recv) -> command => {
                     match command {
                         Ok(command) => {
+                            if let DroneCommand::Crash = command {
+                                self.crash_behavior();
+                                println!("Drone with id {} crashed", self.id);
+                                break;
+                            }
                            self.handle_command(command);
                         },
                         Err(e) => {
@@ -132,53 +135,53 @@ impl TrustDrone {
             DroneCommand::SetPacketDropRate(pdr) => {
                 self.set_packet_drop_rate(pdr);
             }
-            DroneCommand::Crash => {
-                self.crash_behavior();
-                println!("Drone with id {} crashed", self.id);
-                exit(0);
-            }
             DroneCommand::RemoveSender(neighbor_id) => self.remove_sender(neighbor_id),
+            _ => {}
         }
     }
-/*
-Structure of a Packet (Packet)
+    /*
+    Structure of a Packet (Packet)
 
-A Packet is the fundamental unit of communication in the network.
-It is composed of several fields that define its content and behavior.
+    A Packet is the fundamental unit of communication in the network.
+    It is composed of several fields that define its content and behavior.
 
-Fields of Packet:
-- pack_type: PacketType
-  Specifies the type of the packet and its role in the network. It is an enumeration with the following variants:
-    - MsgFragment(Fragment): Represents a fragment of a higher-level message, used for data transport.
-    - Ack(Ack): Confirms the successful receipt of a fragment.
-    - Nack(Nack): Indicates an error during processing or routing of a packet.
-    - FloodRequest(FloodRequest): Used for network topology discovery via query flooding.
-    - FloodResponse(FloodResponse): A response to a flooding request, containing topology information.
+    Fields of Packet:
+    - pack_type: PacketType
+      Specifies the type of the packet and its role in the network. It is an enumeration with the following variants:
+        - MsgFragment(Fragment): Represents a fragment of a higher-level message, used for data transport.
+        - Ack(Ack): Confirms the successful receipt of a fragment.
+        - Nack(Nack): Indicates an error during processing or routing of a packet.
+        - FloodRequest(FloodRequest): Used for network topology discovery via query flooding.
+        - FloodResponse(FloodResponse): A response to a flooding request, containing topology information.
 
-- routing_header: SourceRoutingHeader
-  Contains routing information for the packet. This enables source-based routing, where the sender precomputes the entire path the packet should take through the network.
-  Components:
-    - hop_index: usize
-      Indicates the current hop's position in the hops list. Starts at 1 when the packet is first sent.
-    - hops: Vec<NodeId>
-      A list of node identifiers representing the full path from the sender to the destination.
+    - routing_header: SourceRoutingHeader
+      Contains routing information for the packet. This enables source-based routing, where the sender precomputes the entire path the packet should take through the network.
+      Components:
+        - hop_index: usize
+          Indicates the current hop's position in the hops list. Starts at 1 when the packet is first sent.
+        - hops: Vec<NodeId>
+          A list of node identifiers representing the full path from the sender to the destination.
 
-- session_id: u64
-  A unique identifier for the session associated with the packet. It helps group related packets, such as fragments of the same message, and differentiates them from others in the network.
+    - session_id: u64
+      A unique identifier for the session associated with the packet. It helps group related packets, such as fragments of the same message, and differentiates them from others in the network.
 
-Packets are routed through the network using the information in the routing_header. The type, defined by pack_type, determines how each packet is processed and its role in the communication flow.
-*/
-
+    Packets are routed through the network using the information in the routing_header. The type, defined by pack_type, determines how each packet is processed and its role in the communication flow.
+    */
 
     // This is the part that handles packets received from other drones.
     fn handle_packet(&mut self, mut packett: Packet) {
-        let mut packet = packett.clone();   //used because flooding needs the original packet
+        let mut packet = packett.clone(); //used because flooding needs the original packet
 
         let old_routing_headers = packet.routing_header.clone();
 
         //Step 1 of the protocol , if the packet was not meant for him
         if packet.routing_header.hops[packet.routing_header.hop_index] != self.id {
-            self.send_nack(&old_routing_headers, NackType::UnexpectedRecipient(self.id), packet.session_id, packet.get_fragment_index());
+            self.send_nack(
+                &old_routing_headers,
+                NackType::UnexpectedRecipient(self.id),
+                packet.session_id,
+                packet.get_fragment_index(),
+            );
             return;
         }
 
@@ -187,7 +190,12 @@ Packets are routed through the network using the information in the routing_head
 
         //Step 3,
         if packet.routing_header.hop_index == packet.routing_header.hops.len() {
-            self.send_nack(&old_routing_headers, NackType::DestinationIsDrone, packet.session_id, packet.get_fragment_index());
+            self.send_nack(
+                &old_routing_headers,
+                NackType::DestinationIsDrone,
+                packet.session_id,
+                packet.get_fragment_index(),
+            );
             return;
         }
 
@@ -195,7 +203,12 @@ Packets are routed through the network using the information in the routing_head
         let next_hop = packet.routing_header.hops[packet.routing_header.hop_index];
 
         if !self.is_next_hop_neighbour(next_hop) {
-            self.send_nack(&old_routing_headers, NackType::ErrorInRouting(next_hop), packet.session_id, packet.get_fragment_index());
+            self.send_nack(
+                &old_routing_headers,
+                NackType::ErrorInRouting(next_hop),
+                packet.session_id,
+                packet.get_fragment_index(),
+            );
             return;
         }
 
@@ -205,7 +218,12 @@ Packets are routed through the network using the information in the routing_head
                 //check if it should drop
                 let should_drop = self.rng.gen_range(0.0..1.0) <= self.pdr;
                 if should_drop {
-                    self.send_nack(&old_routing_headers, NackType::Dropped, packet.session_id, packet.get_fragment_index());
+                    self.send_nack(
+                        &old_routing_headers,
+                        NackType::Dropped,
+                        packet.session_id,
+                        packet.get_fragment_index(),
+                    );
                 } else {
                     self.send_valid_packet(next_hop, packet);
                 }
@@ -217,44 +235,48 @@ Packets are routed through the network using the information in the routing_head
                 self.send_valid_packet(next_hop, packet);
             }
             /*
-             pub struct FloodRequest {
-                 flood_id: u64,               Unique identifier for the flooding operation
-                 initiator_id: NodeId,        ID of the node that started the flooding
-                 path_trace: Vec<(NodeId, NodeType)>, // Trace of nodes traversed during the flooding
-             }
-             */
-
+            pub struct FloodRequest {
+                flood_id: u64,               Unique identifier for the flooding operation
+                initiator_id: NodeId,        ID of the node that started the flooding
+                path_trace: Vec<(NodeId, NodeType)>, // Trace of nodes traversed during the flooding
+            }
+            */
             PacketType::FloodRequest(mut flood_packet) => {
                 flood_packet.increment(self.id, DroneType);
 
                 let mut previous_neighbour = 0;
-                if let Some(last) = flood_packet.path_trace.last()
-                {
+                if let Some(last) = flood_packet.path_trace.last() {
                     previous_neighbour = last.0;
                 } else {
-                    panic!("Can not find neighbour who send this packet {} ", flood_packet);
+                    panic!(
+                        "Can not find neighbour who send this packet {} ",
+                        flood_packet
+                    );
                 }
 
-                if self.flood_ids.contains(&flood_packet.flood_id)      // if the drone had already seen this FloodRequest it sends a FloodResponse back
+                if self.flood_ids.contains(&flood_packet.flood_id)
+                // if the drone had already seen this FloodRequest it sends a FloodResponse back
                 {
-                    self.send_packet(previous_neighbour, flood_packet.generate_response(7));  //send back   !!!!!!!!!!Session id unknown
-
+                    self.send_packet(previous_neighbour, flood_packet.generate_response(7));
+                //send back   !!!!!!!!!!Session id unknown
                 } else {
                     self.flood_ids.push(flood_packet.flood_id); //save the flood id for next use
 
                     if self.packet_send.len() - 1 == 0 {
-                        //if there are no neighbours send back flooding response 
+                        //if there are no neighbours send back flooding response
 
-                        self.send_packet(previous_neighbour, flood_packet.generate_response(7));  //send back   !!!!!!!!!!Session id unknown
-
-                    } else {    //send packet to all the neighbours except the sender
+                        self.send_packet(previous_neighbour, flood_packet.generate_response(7));
+                    //send back   !!!!!!!!!!Session id unknown
+                    } else {
+                        //send packet to all the neighbours except the sender
                         for (key, _) in self.packet_send.clone() {
                             if key != previous_neighbour {
                                 let mut cloned_packett = packett.clone();
-                                cloned_packett.pack_type = PacketType::FloodResponse(FloodResponse {
-                                    flood_id: flood_packet.flood_id,
-                                    path_trace: flood_packet.path_trace.clone(),
-                                });
+                                cloned_packett.pack_type =
+                                    PacketType::FloodResponse(FloodResponse {
+                                        flood_id: flood_packet.flood_id,
+                                        path_trace: flood_packet.path_trace.clone(),
+                                    });
                                 self.send_packet(key, cloned_packett);
                             }
                         }
@@ -280,7 +302,6 @@ Packets are routed through the network using the information in the routing_head
         self.pdr = pdr;
     }
 
-
     fn send_packet_sent_event(&mut self, packet: Packet) {
         self.controller_send
             .send(PacketSent(packet))
@@ -294,7 +315,8 @@ Packets are routed through the network using the information in the routing_head
 
     //reverse the headers to send nacks and acks
     fn reverse_headers(source_routing_header: &SourceRoutingHeader) -> SourceRoutingHeader {
-        let mut new_hops = source_routing_header.hops[..source_routing_header.hop_index + 1].to_vec();
+        let mut new_hops =
+            source_routing_header.hops[..source_routing_header.hop_index + 1].to_vec();
         new_hops.reverse();
         let new_headers = SourceRoutingHeader {
             hops: new_hops,
@@ -303,7 +325,13 @@ Packets are routed through the network using the information in the routing_head
         new_headers
     }
 
-    fn send_nack(&mut self, routing_header: &SourceRoutingHeader, nack_type: NackType, session_id: u64, fragment_index: u64) {
+    fn send_nack(
+        &mut self,
+        routing_header: &SourceRoutingHeader,
+        nack_type: NackType,
+        session_id: u64,
+        fragment_index: u64,
+    ) {
         let new_headers = Self::reverse_headers(routing_header);
 
         let is_dropped = match &nack_type {
@@ -339,14 +367,12 @@ Packets are routed through the network using the information in the routing_head
         let sender = self.packet_send.get(&dest_id);
 
         match sender {
-            None => {
-                match packet.pack_type {
-                    PacketType::Ack(_) | PacketType::Nack(_) | PacketType::FloodResponse(_) => {
-                        self.send_shortcut(packet);
-                    }
-                    _ => ()
+            None => match packet.pack_type {
+                PacketType::Ack(_) | PacketType::Nack(_) | PacketType::FloodResponse(_) => {
+                    self.send_shortcut(packet);
                 }
-            }
+                _ => (),
+            },
             Some(sender) => {
                 sender.send(packet).expect("Sender should be valid");
             }
@@ -423,7 +449,6 @@ mod tests {
     use super::*;
     use crossbeam_channel::unbounded;
 
-
     #[test]
     fn test_add_sender() {
         //Create a drone for testing
@@ -455,7 +480,9 @@ mod tests {
         drone.add_sender(id_test, packet_sender);
         match drone.packet_send.get(&id_test) {
             Some(r) => (),
-            None => { panic!("Error: packet_send not found/inserted correctly") } // used panic! because I should have written impl of Eq for Sender<Packet>
+            None => {
+                panic!("Error: packet_send not found/inserted correctly")
+            } // used panic! because I should have written impl of Eq for Sender<Packet>
         }
     }
     #[test]
@@ -526,15 +553,18 @@ mod tests {
         drone.handle_command(dc1);
         match drone.packet_send.get(&id_test) {
             Some(r) => {
-
                 //test RemoveSender
                 drone.handle_command(dc3);
                 match drone.packet_send.get(&id_test) {
-                    Some(r) => { panic!("Error: sender should have been eliminated") }
-                    None => ()
+                    Some(r) => {
+                        panic!("Error: sender should have been eliminated")
+                    }
+                    None => (),
                 }
             }
-            None => { panic!("Error: packet_send not found/inserted correctly") }
+            None => {
+                panic!("Error: packet_send not found/inserted correctly")
+            }
         }
 
         //test SetPacketDropRate
@@ -698,7 +728,6 @@ pub fn generic_chain_fragment_drop() {
     // Client receive an NACK originated from 'd2'
     let t3 = c_recv.recv().unwrap();
 
-
     let t4 = Packet {
         pack_type: PacketType::Nack(Nack {
             fragment_index: 1,
@@ -758,7 +787,6 @@ pub fn generic_chain_fragment_ack() {
         drone2.run();
     });
 
-
     let mut msg = Packet {
         pack_type: PacketType::MsgFragment(Fragment {
             fragment_index: 1,
@@ -775,7 +803,6 @@ pub fn generic_chain_fragment_ack() {
 
     // "Client" sends packet to d
     d_send.send(msg.clone()).unwrap();
-
 
     // "Server" receives the fragment
     s_recv.recv().unwrap();
@@ -803,5 +830,3 @@ pub fn generic_chain_fragment_ack() {
     };
     assert_eq!(t6, ack2);
 }
-
-fn main() {}
