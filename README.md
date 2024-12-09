@@ -14,15 +14,23 @@ In order to use our implementation of the drone you need to follow these steps:
 [dependencies]
 TrustDrone = { git = "https://github.com/Beto-prog/TrustDone", package = "drone" }
 ```
-2. After that you can use our amazing drone in your network initializer like this:
+2. Update cargo
+   
+```bash
+cargo clean
+cargo update
+cargo build
+```
+
+3. After that you can use our amazing drone in your network initializer like this:
 
 ```rust
 use TrustDrone::TrustDrone as TrsDrone;
 
 ```
 
-3. Pray God (or Rust, or both) it works
-4. If the previous step didn't work, feel free to write us on this Telegram group
+4. Pray God (or Rust, or both) it works
+5. If the previous step didn't work, feel free to write us on this Telegram group
 ```
 https://t.me/+HDoQkiV2qK0zZjc0
 ```
