@@ -60,9 +60,7 @@ pub struct TrustDrone {
     packet_recv: Receiver<Packet>,
     pdr: f32,
     packet_send: HashMap<NodeId, Sender<Packet>>,
-
-    rng: StdRng, //The random number generator
-
+    rng: StdRng,
     flood_ids: Vec<u64>,
 }
 
@@ -84,9 +82,7 @@ impl Drone for TrustDrone {
             packet_recv,
             packet_send,
             pdr,
-
             rng: StdRng::seed_from_u64(random_seed),
-
             flood_ids: Vec::new(),
         }
     }
@@ -171,7 +167,6 @@ impl TrustDrone {
     // This is the part that handles packets received from other drones.
     fn handle_packet(&mut self, mut packett: Packet) {
         let mut packet = packett.clone(); //used because flooding needs the original packet
-
         let old_routing_headers = packet.routing_header.clone();
 
         //Step 1 of the protocol , if the packet was not meant for him
@@ -245,6 +240,7 @@ impl TrustDrone {
                 flood_packet.increment(self.id, DroneType);
 
                 let mut previous_neighbour = 0;
+
                 if let Some(last) = flood_packet.path_trace.last() {
                     previous_neighbour = last.0;
                 } else {
@@ -261,10 +257,8 @@ impl TrustDrone {
                 //send back   !!!!!!!!!!Session id unknown
                 } else {
                     self.flood_ids.push(flood_packet.flood_id); //save the flood id for next use
-
                     if self.packet_send.len() - 1 == 0 {
                         //if there are no neighbours send back flooding response
-
                         self.send_packet(previous_neighbour, flood_packet.generate_response(7));
                     //send back   !!!!!!!!!!Session id unknown
                     } else {
@@ -283,7 +277,6 @@ impl TrustDrone {
                     }
                 }
             }
-
             PacketType::FloodResponse(_) => {
                 self.send_valid_packet(next_hop, packet);
             }
@@ -307,6 +300,7 @@ impl TrustDrone {
             .send(PacketSent(packet))
             .expect("Failed to send message to simulation controller");
     }
+
     fn send_packet_dropped_event(&mut self, packet: Packet) {
         if let Err(e) = self.controller_send.send(PacketDropped(packet)) {
             println!("{}", e);
@@ -333,14 +327,11 @@ impl TrustDrone {
         fragment_index: u64,
     ) {
         let new_headers = Self::reverse_headers(routing_header);
-
         let is_dropped = match &nack_type {
             NackType::Dropped => true,
             _ => false,
         };
-
         let next_hop = new_headers.hops[1];
-
         let nack = Packet {
             pack_type: PacketType::Nack(Nack {
                 fragment_index,
@@ -439,7 +430,6 @@ impl TrustDrone {
                 }
             }
         }
-
         println!("Drone {} has successfully crashed.", self.id);
     }
 }
@@ -485,6 +475,7 @@ mod tests {
             } // used panic! because I should have written impl of Eq for Sender<Packet>
         }
     }
+
     #[test]
     fn test_set_packet_drop_rate() {
         let id: u8 = 123;
@@ -515,6 +506,7 @@ mod tests {
         drone.set_packet_drop_rate(0.7);
         assert_eq!(drone.pdr, 0.7);
     }
+
     #[test]
     fn test_handle_command() {
         let id: u8 = 123;
@@ -593,6 +585,7 @@ fn create_sample_packet() -> Packet {
         session_id: 1,
     }
 }
+
 /// This function is used to test the packet forward functionality of a drone.
 #[test]
 pub fn generic_fragment_forward() {
@@ -626,6 +619,7 @@ pub fn generic_fragment_forward() {
     // d2 receives packet from d
     assert_eq!(t, msg);
 }
+
 /// Checks if the packet is dropped by one drone. The drone MUST have 100% packet drop rate, otherwise the test will fail sometimes.
 #[test]
 pub fn generic_fragment_drop() {
