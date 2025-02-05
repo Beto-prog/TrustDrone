@@ -445,46 +445,50 @@ impl TrustDrone {
         println!("Drone {} entering crashing behavior...", self.id);
 
         // Process remaining messages until the channel is closed and empty
-        while let Ok(packet) = self.packet_recv.recv() {
-            let mut packet = packet.clone();
-            let old_routing_headers = packet.routing_header.clone();
+        //
+        while !self.packet_recv.is_empty() {
+            if let Ok(packet) = self.packet_recv.recv() {
+                let mut packet = packet.clone();
+                let old_routing_headers = packet.routing_header.clone();
 
-            match packet.pack_type {
-                // FloodRequests can be lost during crash
-                PacketType::FloodRequest(_) => {
-                    // Simply ignore/drop the packet
-                    continue;
-                }
-
-                // Ack, Nack and FloodResponse should still be forwarded
-                PacketType::Ack(_) | PacketType::Nack(_) | PacketType::FloodResponse(_) => {
-                    // Basic routing checks still apply
-                    if packet.routing_header.hops[packet.routing_header.hop_index] != self.id {
-                        continue; // Skip invalid packets during crash
+                match packet.pack_type {
+                    // FloodRequests can be lost during crash
+                    PacketType::FloodRequest(_) => {
+                        // Simply ignore/drop the packet
+                        continue;
                     }
 
-                    packet.routing_header.hop_index += 1;
+                    // Ack, Nack and FloodResponse should still be forwarded
+                    PacketType::Ack(_) | PacketType::Nack(_) | PacketType::FloodResponse(_) => {
+                        // Basic routing checks still apply
+                        if packet.routing_header.hops[packet.routing_header.hop_index] != self.id {
+                            continue; // Skip invalid packets during crash
+                        }
 
-                    if packet.routing_header.hop_index < packet.routing_header.hops.len() {
-                        let next_hop = packet.routing_header.hops[packet.routing_header.hop_index];
-                        if self.is_next_hop_neighbour(next_hop) {
-                            self.send_valid_packet(next_hop, packet);
+                        packet.routing_header.hop_index += 1;
+
+                        if packet.routing_header.hop_index < packet.routing_header.hops.len() {
+                            let next_hop =
+                                packet.routing_header.hops[packet.routing_header.hop_index];
+                            if self.is_next_hop_neighbour(next_hop) {
+                                self.send_valid_packet(next_hop, packet);
+                            }
                         }
                     }
-                }
 
-                // For all other packet types (MsgFragment), send ErrorInRouting Nack
-                _ => {
-                    self.send_nack(
-                        &old_routing_headers,
-                        NackType::ErrorInRouting(self.id),
-                        packet.session_id,
-                        packet.get_fragment_index(),
-                    );
+                    // For all other packet types (MsgFragment), send ErrorInRouting Nack
+                    _ => {
+                        self.send_nack(
+                            &old_routing_headers,
+                            NackType::ErrorInRouting(self.id),
+                            packet.session_id,
+                            packet.get_fragment_index(),
+                        );
+                    }
                 }
             }
+            println!("Drone {} has successfully crashed.", self.id);
         }
-        println!("Drone {} has successfully crashed.", self.id);
     }
 }
 
