@@ -64,7 +64,7 @@ pub struct TrustDrone {
     pdr: f32,
     packet_send: HashMap<NodeId, Sender<Packet>>,
     rng: StdRng,
-    flood_ids: Vec<u64>,
+    flood_ids: Vec<(u64,NodeId)>,
 }
 
 //Initialization of the drone
@@ -187,7 +187,7 @@ impl TrustDrone {
                 );
             }
 
-            if self.flood_ids.contains(&flood_packet.flood_id)
+            if self.flood_ids.contains(&(flood_packet.flood_id,flood_packet.initiator_id))
             // if the drone had already seen this FloodRequest it sends a FloodResponse back
             {
                 self.send_valid_packet(
@@ -195,7 +195,7 @@ impl TrustDrone {
                     flood_packet.generate_response(packet.session_id),
                 );
             } else {
-                self.flood_ids.push(flood_packet.flood_id); //save the flood id for next use
+                self.flood_ids.push((flood_packet.flood_id,flood_packet.initiator_id)); //save the tuple (flood id,initiator_id) for next use
                 if self.packet_send.len() - 1 == 0 {
                     //if there are no neighbours send back flooding response
                     self.send_valid_packet(
