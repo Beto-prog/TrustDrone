@@ -64,7 +64,7 @@ pub struct TrustDrone {
     pdr: f32,
     packet_send: HashMap<NodeId, Sender<Packet>>,
     rng: StdRng,
-    flood_ids: Vec<(u64,NodeId)>,
+    flood_ids: Vec<(u64, NodeId)>,
 }
 
 //Initialization of the drone
@@ -187,7 +187,9 @@ impl TrustDrone {
                 );
             }
 
-            if self.flood_ids.contains(&(flood_packet.flood_id,flood_packet.initiator_id))
+            if self
+                .flood_ids
+                .contains(&(flood_packet.flood_id, flood_packet.initiator_id))
             // if the drone had already seen this FloodRequest it sends a FloodResponse back
             {
                 self.send_valid_packet(
@@ -195,7 +197,8 @@ impl TrustDrone {
                     flood_packet.generate_response(packet.session_id),
                 );
             } else {
-                self.flood_ids.push((flood_packet.flood_id,flood_packet.initiator_id)); //save the tuple (flood id,initiator_id) for next use
+                self.flood_ids
+                    .push((flood_packet.flood_id, flood_packet.initiator_id)); //save the tuple (flood id,initiator_id) for next use
                 if self.packet_send.len() - 1 == 0 {
                     //if there are no neighbours send back flooding response
                     self.send_valid_packet(
@@ -671,9 +674,9 @@ pub fn generic_fragment_forward() {
     let mut msg = create_sample_packet();
 
     // "Client" sends packet to d
-    d_send.send(msg.clone()).unwrap();
+    d_send.send(msg.clone()).expect("Should be able to send");
     msg.routing_header.hop_index = 2;
-    let t = d2_recv.recv().unwrap();
+    let t = d2_recv.recv().expect("Should be able to send");
     // d2 receives packet from d
     assert_eq!(t, msg);
 }
@@ -706,7 +709,7 @@ pub fn generic_fragment_drop() {
     let msg = create_sample_packet();
 
     // "Client" sends packet to the drone
-    d_send.send(msg.clone()).unwrap();
+    d_send.send(msg.clone()).expect("Should be able to send");
 
     let dropped = Nack {
         fragment_index: 1,
@@ -723,7 +726,7 @@ pub fn generic_fragment_drop() {
     };
 
     // Client listens for packet from the drone (Dropped Nack)
-    let t = c_recv.recv().unwrap();
+    let t = c_recv.recv().expect("Should be able to receive");
     assert_eq!(t, nack_packet);
 }
 
@@ -775,10 +778,10 @@ pub fn generic_chain_fragment_drop() {
     let mut msg = create_sample_packet();
 
     // "Client" sends packet to the drone
-    d_send.send(msg.clone()).unwrap();
+    d_send.send(msg.clone()).expect("Should be able to send");
 
     // Client receive an NACK originated from 'd2'
-    let t3 = c_recv.recv().unwrap();
+    let t3 = c_recv.recv().expect("Should be able to receive");
 
     let t4 = Packet {
         pack_type: PacketType::Nack(Nack {
@@ -854,10 +857,10 @@ pub fn generic_chain_fragment_ack() {
     };
 
     // "Client" sends packet to d
-    d_send.send(msg.clone()).unwrap();
+    d_send.send(msg.clone()).expect("Should be able to send");
 
     // "Server" receives the fragment
-    s_recv.recv().unwrap();
+    s_recv.recv().expect("Should be able to receive");
 
     // Server sends Ack to d12
     let ack = Packet {
@@ -868,10 +871,10 @@ pub fn generic_chain_fragment_ack() {
         },
         session_id: 1,
     };
-    d12_send.send(ack.clone()).unwrap();
+    d12_send.send(ack.clone()).expect("Should be able to send");
 
     // "Client" receives the Ack from d
-    let t6 = c_recv.recv().unwrap();
+    let t6 = c_recv.recv().expect("Should be able to receive");
     let ack2 = Packet {
         pack_type: PacketType::Ack(Ack { fragment_index: 1 }),
         routing_header: SourceRoutingHeader {
